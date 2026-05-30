@@ -269,7 +269,7 @@ h1 {
 
 .event-list {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -278,19 +278,19 @@ h1 {
 .event-list li,
 .forecast-row {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
   border-radius: 8px;
   background: #111827;
   color: #f8fafc;
-  padding: 9px 10px;
+  padding: 11px 12px;
 }
 
 .event-list time,
 .forecast-row small {
   color: rgba(255, 255, 255, 0.58);
-  font-size: 0.78rem;
+  font-size: 1rem;
   font-weight: 850;
 }
 
@@ -302,12 +302,12 @@ h1 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.9rem;
+  font-size: 1.18rem;
   font-weight: 900;
 }
 
 .forecast-row strong {
-  font-size: 0.82rem;
+  font-size: 1.05rem;
 }
 
 .forecast-row em {
@@ -317,18 +317,18 @@ h1 {
 
 .forecast-list {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .forecast-summary {
   margin-bottom: 0;
   color: #334155;
-  font-size: 1rem;
+  font-size: 1.25rem;
   font-weight: 900;
 }
 
 .forecast-row {
-  grid-template-columns: 68px 52px minmax(0, 1fr);
+  grid-template-columns: 90px 70px minmax(0, 1fr);
 }
 
 .empty-state {
