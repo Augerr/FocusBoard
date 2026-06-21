@@ -383,6 +383,159 @@ h1 {
   line-height: 1.5;
 }
 
+.worldcup-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(100%, 800px);
+  height: min(calc(100vh - 68px), 480px);
+  margin: 0 auto;
+}
+
+.worldcup-panel h2 {
+  max-width: 580px;
+  font-size: 1.9rem;
+  line-height: 1.1;
+}
+
+.worldcup-grid {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 12px;
+}
+
+.worldcup-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  padding: 14px;
+}
+
+.worldcup-card .panel-label {
+  margin-bottom: 8px;
+  color: #99f6e4;
+}
+
+.standings-card {
+  grid-column: 1 / -1;
+}
+
+.match-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.match-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 8px 10px;
+}
+
+.match-teams {
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.match-list time {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.standings-scroll {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  overflow-y: auto;
+}
+
+.standings-group {
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 8px 10px;
+}
+
+.standings-group-name {
+  margin: 0 0 6px;
+  color: #99f6e4;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.standings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.standings-table th {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 700;
+  text-align: left;
+  padding: 2px 4px;
+}
+
+.standings-table td {
+  padding: 2px 4px;
+  font-weight: 700;
+}
+
+.standings-table th:not(:first-child),
+.standings-table td:not(:first-child) {
+  text-align: right;
+}
+
+.standings-table td:first-child {
+  overflow: hidden;
+  max-width: 90px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .standings-scroll {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .worldcup-panel {
+    height: auto;
+  }
+
+  .worldcup-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+
+  .standings-card {
+    grid-column: 1;
+  }
+
+  .standings-scroll {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (min-width: 721px) and (max-width: 900px) and (max-height: 540px) {
   .terminal {
     grid-template-columns: minmax(0, 1fr) 300px;

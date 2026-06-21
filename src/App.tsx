@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 
 const DEFAULT_LATITUDE = 43.6532;
 const DEFAULT_LONGITUDE = -79.3832;
+const WORLD_CUP_SEASON = 2026;
 
-type PageId = "focus" | "today";
+type PageId = "focus" | "today" | "worldcup";
 
 type CalendarEvent = {
   id: string;
@@ -26,9 +27,34 @@ type DayWeather = {
   periods: ForecastPeriod[];
 };
 
+type WorldCupMatch = {
+  id: string;
+  date: Date;
+  state: string;
+  statusText: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+type StandingRow = {
+  team: string;
+  rank: number;
+  played: number;
+  goalDiff: number;
+  points: number;
+};
+
+type StandingGroup = {
+  name: string;
+  rows: StandingRow[];
+};
+
 const pages: Array<{ id: PageId; label: string }> = [
   { id: "focus", label: "Focus" },
   { id: "today", label: "Today" },
+  { id: "worldcup", label: "World Cup" },
 ];
 
 function App() {
@@ -63,7 +89,13 @@ function App() {
         ))}
       </nav>
 
-      {activePage === "focus" ? <FocusTerminal /> : <TodayPanel />}
+      {activePage === "focus" ? (
+        <FocusTerminal />
+      ) : activePage === "today" ? (
+        <TodayPanel />
+      ) : (
+        <WorldCupPanel />
+      )}
     </main>
   );
 }
@@ -189,6 +221,41 @@ function TodayPanel() {
   );
 }
 
+function WorldCupPanel() {
+  const { results, schedule, standings, worldCupStatus } = useWorldCup();
+
+  return (
+    <section className="worldcup-panel" aria-label="World Cup">
+      <div>
+        <p className="eyebrow">World Cup</p>
+        <h2>Scores, schedule and standings</h2>
+      </div>
+      <div className="worldcup-grid">
+        <section className="worldcup-card">
+          <p className="panel-label">Latest scores</p>
+          <MatchList
+            matches={results}
+            status={worldCupStatus}
+            emptyText="No recent matches"
+          />
+        </section>
+        <section className="worldcup-card">
+          <p className="panel-label">Schedule</p>
+          <MatchList
+            matches={schedule}
+            status={worldCupStatus}
+            emptyText="No upcoming matches"
+          />
+        </section>
+        <section className="worldcup-card standings-card">
+          <p className="panel-label">Standings</p>
+          <StandingsTable groups={standings} status={worldCupStatus} />
+        </section>
+      </div>
+    </section>
+  );
+}
+
 function WeatherCard({ weather }: { weather: DayWeather }) {
   return (
     <aside className="weather-card" aria-label="Weather summary">
@@ -242,6 +309,84 @@ function ForecastList({
           <span>{Math.round(period.temp)}°C</span>
           <small>{period.precipitation}% rain</small>
           <em>{period.condition}</em>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MatchList({
+  matches,
+  status,
+  emptyText,
+}: {
+  matches: WorldCupMatch[];
+  status: string;
+  emptyText: string;
+}) {
+  if (matches.length === 0) {
+    return (
+      <p className="empty-state">
+        {status === "World Cup synced" ? emptyText : status}
+      </p>
+    );
+  }
+
+  return (
+    <ol className="match-list">
+      {matches.map((match) => (
+        <li key={match.id}>
+          <span className="match-teams">
+            {match.homeTeam} <strong>{formatMatchScore(match)}</strong>{" "}
+            {match.awayTeam}
+          </span>
+          <time>
+            {match.state === "pre"
+              ? formatMatchTime(match.date)
+              : match.statusText}
+          </time>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function StandingsTable({
+  groups,
+  status,
+}: {
+  groups: StandingGroup[];
+  status: string;
+}) {
+  if (groups.length === 0) {
+    return <p className="empty-state">{status}</p>;
+  }
+
+  return (
+    <div className="standings-scroll">
+      {groups.map((group) => (
+        <div key={group.name} className="standings-group">
+          <p className="standings-group-name">{group.name}</p>
+          <table className="standings-table">
+            <thead>
+              <tr>
+                <th>Team</th>
+                <th>P</th>
+                <th>GD</th>
+                <th>Pts</th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.rows.map((row) => (
+                <tr key={row.team}>
+                  <td>{row.team}</td>
+                  <td>{row.played}</td>
+                  <td>{row.goalDiff}</td>
+                  <td>{row.points}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ))}
     </div>
@@ -383,6 +528,71 @@ function useDayWeather() {
   return { weather, weatherStatus };
 }
 
+function useWorldCup() {
+  const [results, setResults] = useState<WorldCupMatch[]>([]);
+  const [schedule, setSchedule] = useState<WorldCupMatch[]>([]);
+  const [standings, setStandings] = useState<StandingGroup[]>([]);
+  const [worldCupStatus, setWorldCupStatus] = useState("Loading World Cup");
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadWorldCup = async () => {
+      try {
+        const dates = formatEspnDateRange(new Date(), 30);
+        const [scoreboardResponse, standingsResponse] = await Promise.all([
+          fetch(
+            `https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=${dates}`,
+          ),
+          fetch(
+            `https://site.api.espn.com/apis/v2/sports/soccer/fifa.world/standings?season=${WORLD_CUP_SEASON}`,
+          ),
+        ]);
+
+        if (!scoreboardResponse.ok || !standingsResponse.ok) {
+          throw new Error("World Cup request failed");
+        }
+
+        const scoreboardData =
+          (await scoreboardResponse.json()) as EspnScoreboardResponse;
+        const standingsData =
+          (await standingsResponse.json()) as EspnStandingsResponse;
+        if (!isActive) return;
+
+        const matches = scoreboardData.events.map(toWorldCupMatch);
+
+        const finished = matches
+          .filter((match) => match.state === "post")
+          .sort((a, b) => b.date.getTime() - a.date.getTime())
+          .slice(0, 5);
+
+        const upcoming = matches
+          .filter((match) => match.state !== "post")
+          .sort((a, b) => a.date.getTime() - b.date.getTime())
+          .slice(0, 5);
+
+        setResults(finished);
+        setSchedule(upcoming);
+        setStandings(standingsData.children.map(toStandingGroup));
+        setWorldCupStatus("World Cup synced");
+      } catch (error) {
+        console.error(error);
+        if (isActive) setWorldCupStatus("World Cup unavailable");
+      }
+    };
+
+    void loadWorldCup();
+    const interval = window.setInterval(loadWorldCup, 2 * 60 * 1000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  return { results, schedule, standings, worldCupStatus };
+}
+
 type GoogleCalendarResponse = {
   items: Array<{
     id: string;
@@ -409,6 +619,33 @@ type OpenMeteoResponse = {
     precipitation_probability: number[];
     weather_code: number[];
   };
+};
+
+type EspnScoreboardResponse = {
+  events: Array<{
+    id: string;
+    date: string;
+    competitions: Array<{
+      competitors: Array<{
+        homeAway: "home" | "away";
+        score?: string;
+        team: { displayName: string };
+      }>;
+      status: { type: { state: string; shortDetail: string } };
+    }>;
+  }>;
+};
+
+type EspnStandingsResponse = {
+  children: Array<{
+    name: string;
+    standings: {
+      entries: Array<{
+        team: { displayName: string };
+        stats: Array<{ name: string; value: number }>;
+      }>;
+    };
+  }>;
 };
 
 type PeriodDefinition = {
@@ -466,6 +703,76 @@ function mostCommon(values: number[]) {
   });
 
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+}
+
+function toWorldCupMatch(
+  event: EspnScoreboardResponse["events"][number],
+): WorldCupMatch {
+  const competition = event.competitions[0];
+  const home = competition.competitors.find((c) => c.homeAway === "home");
+  const away = competition.competitors.find((c) => c.homeAway === "away");
+  const state = competition.status.type.state;
+  const hasScore = state !== "pre";
+
+  return {
+    id: event.id,
+    date: new Date(event.date),
+    state,
+    statusText: competition.status.type.shortDetail,
+    homeTeam: home?.team.displayName ?? "TBD",
+    awayTeam: away?.team.displayName ?? "TBD",
+    homeScore: hasScore && home?.score != null ? Number(home.score) : null,
+    awayScore: hasScore && away?.score != null ? Number(away.score) : null,
+  };
+}
+
+function toStandingGroup(
+  group: EspnStandingsResponse["children"][number],
+): StandingGroup {
+  const rows = group.standings.entries.map((entry) => {
+    const stats = new Map(entry.stats.map((stat) => [stat.name, stat.value]));
+
+    return {
+      team: entry.team.displayName,
+      rank: stats.get("rank") ?? 0,
+      played: stats.get("gamesPlayed") ?? 0,
+      goalDiff: stats.get("pointDifferential") ?? 0,
+      points: stats.get("points") ?? 0,
+    };
+  });
+
+  return {
+    name: group.name,
+    rows: rows.sort((a, b) => a.rank - b.rank),
+  };
+}
+
+function formatEspnDateRange(center: Date, days: number) {
+  const start = new Date(center);
+  start.setDate(start.getDate() - days);
+  const end = new Date(center);
+  end.setDate(end.getDate() + days);
+  return `${formatEspnDate(start)}-${formatEspnDate(end)}`;
+}
+
+function formatEspnDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function formatMatchScore(match: WorldCupMatch) {
+  if (match.homeScore === null || match.awayScore === null) return "vs";
+  return `${match.homeScore} - ${match.awayScore}`;
+}
+
+function formatMatchTime(date: Date) {
+  return date.toLocaleString([], {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function startOfToday() {
