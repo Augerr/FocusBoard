@@ -4,7 +4,7 @@ const DEFAULT_LATITUDE = 43.6532;
 const DEFAULT_LONGITUDE = -79.3832;
 const WORLD_CUP_SEASON = 2026;
 
-type PageId = "focus" | "today" | "worldcup";
+type PageId = "focus" | "today" | "weather" | "worldcup";
 
 type CalendarEvent = {
   id: string;
@@ -24,6 +24,26 @@ type DayWeather = {
   location: string;
   currentTemp: number;
   condition: string;
+  periods: ForecastPeriod[];
+};
+
+type DetailedForecastHour = {
+  time: Date;
+  temp: number;
+  precipitation: number;
+  condition: string;
+};
+
+type DetailedForecastDay = {
+  date: Date;
+  label: string;
+  high: number;
+  low: number;
+  condition: string;
+  precipitation: number;
+  sunrise: Date;
+  sunset: Date;
+  hours: DetailedForecastHour[];
   periods: ForecastPeriod[];
 };
 
@@ -54,6 +74,7 @@ type StandingGroup = {
 const pages: Array<{ id: PageId; label: string }> = [
   { id: "focus", label: "Focus" },
   { id: "today", label: "Today" },
+  { id: "weather", label: "Weather" },
   { id: "worldcup", label: "World Cup" },
 ];
 
@@ -93,6 +114,8 @@ function App() {
         <FocusTerminal />
       ) : activePage === "today" ? (
         <TodayPanel />
+      ) : activePage === "weather" ? (
+        <WeatherForecastPanel />
       ) : (
         <WorldCupPanel />
       )}
@@ -221,6 +244,182 @@ function TodayPanel() {
   );
 }
 
+function WeatherForecastPanel() {
+  const { days, status } = useDetailedWeather();
+
+  return (
+    <section className="weather-panel" aria-label="Weather forecast">
+      <div>
+        <p className="eyebrow">Weather</p>
+        <h2>Today and tomorrow</h2>
+      </div>
+      {days.length === 0 ? (
+        <p className="empty-state">{status}</p>
+      ) : (
+        <div className="weather-grid">
+          {days.map((day) => (
+            <DailyForecastCard key={day.date.toISOString()} day={day} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function DailyForecastCard({ day }: { day: DetailedForecastDay }) {
+  const isToday = day.label === "Today";
+
+  return (
+    <section className="weather-day-card">
+      <div className="weather-day-heading">
+        <p className="panel-label">{day.label}</p>
+        <span>
+          {day.date.toLocaleDateString([], {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+          })}
+        </span>
+      </div>
+
+      <div className="weather-day-summary">
+        <span className="weather-icon weather-icon-lg" aria-hidden="true">
+          {weatherIcon(day.condition)}
+        </span>
+        <strong>
+          {Math.round(day.high)}° / {Math.round(day.low)}°
+        </strong>
+        <span>{day.condition}</span>
+        <small>{day.precipitation}% rain</small>
+      </div>
+
+      <div className="weather-sun-row">
+        <span>Sunrise {formatClockTime(day.sunrise)}</span>
+        <span>Sunset {formatClockTime(day.sunset)}</span>
+      </div>
+
+      {isToday ? (
+        <>
+          <div className="weather-chart-wrap">
+            <TemperatureChart hours={day.hours} />
+          </div>
+          <PeriodForecastList periods={day.periods} compact />
+        </>
+      ) : (
+        <PeriodForecastList periods={day.periods} />
+      )}
+    </section>
+  );
+}
+
+function TemperatureChart({ hours }: { hours: DetailedForecastHour[] }) {
+  const width = 600;
+  const height = 220;
+  const padding = 28;
+  const plotWidth = width - padding * 2;
+  const plotHeight = height - padding * 2;
+
+  const temps = hours.map((hour) => hour.temp);
+  const minTemp = Math.min(...temps);
+  const maxTemp = Math.max(...temps);
+  const range = maxTemp - minTemp || 1;
+
+  const points = hours.map((hour, index) => ({
+    hour,
+    x: padding + (index / (hours.length - 1)) * plotWidth,
+    y: padding + (1 - (hour.temp - minTemp) / range) * plotHeight,
+  }));
+
+  const linePath = points
+    .map(
+      (point, index) =>
+        `${index === 0 ? "M" : "L"}${point.x.toFixed(1)},${point.y.toFixed(1)}`,
+    )
+    .join(" ");
+
+  const areaPath = `${linePath} L${points[points.length - 1].x.toFixed(1)},${
+    height - padding
+  } L${points[0].x.toFixed(1)},${height - padding} Z`;
+
+  const now = new Date();
+  const nowPoint = points.find((point) => point.hour.time.getHours() === now.getHours());
+
+  return (
+    <svg
+      className="temp-chart"
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label="Hourly temperature trend"
+    >
+      {points.map((point) => {
+        const barHeight = (point.hour.precipitation / 100) * (plotHeight * 0.35);
+        return (
+          <rect
+            key={`precip-${point.hour.time.toISOString()}`}
+            className="temp-chart-precip"
+            x={point.x - 6}
+            y={height - padding - barHeight}
+            width={12}
+            height={barHeight}
+          />
+        );
+      })}
+
+      <path className="temp-chart-area" d={areaPath} />
+      <path className="temp-chart-line" d={linePath} />
+
+      {nowPoint ? (
+        <line
+          className="temp-chart-now"
+          x1={nowPoint.x}
+          x2={nowPoint.x}
+          y1={padding}
+          y2={height - padding}
+        />
+      ) : null}
+
+      {points.map((point, index) =>
+        index % 3 === 0 ? (
+          <g key={point.hour.time.toISOString()} className="temp-chart-tick">
+            <circle cx={point.x} cy={point.y} r={3.5} />
+            <text x={point.x} y={point.y - 10} textAnchor="middle">
+              {Math.round(point.hour.temp)}°
+            </text>
+            <text x={point.x} y={height - 6} textAnchor="middle" className="temp-chart-hour">
+              {formatChartHour(point.hour.time)}
+            </text>
+          </g>
+        ) : null,
+      )}
+    </svg>
+  );
+}
+
+function PeriodForecastList({
+  periods,
+  compact,
+}: {
+  periods: ForecastPeriod[];
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "period-list period-list-compact" : "period-list"}>
+      {periods.map((period) => (
+        <div key={period.label} className="period-row">
+          <span className="weather-icon" aria-hidden="true">
+            {weatherIcon(period.condition)}
+          </span>
+          <strong>{period.label}</strong>
+          <span>{Math.round(period.temp)}°C</span>
+          <small>{period.precipitation}% rain</small>
+          <em>{period.condition}</em>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function WorldCupPanel() {
   const { results, schedule, standings, worldCupStatus } = useWorldCup();
 
@@ -260,7 +459,12 @@ function WeatherCard({ weather }: { weather: DayWeather }) {
   return (
     <aside className="weather-card" aria-label="Weather summary">
       <span>{weather.location}</span>
-      <strong>{Math.round(weather.currentTemp)}°C</strong>
+      <strong>
+        <span className="weather-icon" aria-hidden="true">
+          {weatherIcon(weather.condition)}
+        </span>
+        {Math.round(weather.currentTemp)}°C
+      </strong>
       <small>{weather.condition}</small>
     </aside>
   );
@@ -305,10 +509,12 @@ function ForecastList({
       <p className="forecast-summary">{weather.condition}</p>
       {weather.periods.map((period) => (
         <div key={period.label} className="forecast-row">
+          <span className="weather-icon" role="img" aria-label={period.condition}>
+            {weatherIcon(period.condition)}
+          </span>
           <strong>{period.label}</strong>
           <span>{Math.round(period.temp)}°C</span>
-          <small>{period.precipitation}% rain</small>
-          <em>{period.condition}</em>
+          <small>{period.precipitation}%</small>
         </div>
       ))}
     </div>
@@ -528,6 +734,60 @@ function useDayWeather() {
   return { weather, weatherStatus };
 }
 
+function useDetailedWeather() {
+  const [days, setDays] = useState<DetailedForecastDay[]>([]);
+  const [status, setStatus] = useState("Loading forecast");
+
+  useEffect(() => {
+    let isActive = true;
+
+    const latitude = Number(import.meta.env.VITE_WEATHER_LAT ?? DEFAULT_LATITUDE);
+    const longitude = Number(
+      import.meta.env.VITE_WEATHER_LON ?? DEFAULT_LONGITUDE,
+    );
+
+    const loadWeather = async () => {
+      try {
+        const params = new URLSearchParams({
+          latitude: String(latitude),
+          longitude: String(longitude),
+          hourly: "temperature_2m,precipitation_probability,weather_code",
+          daily:
+            "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset",
+          forecast_days: "2",
+          timezone: "auto",
+        });
+        const response = await fetch(
+          `https://api.open-meteo.com/v1/forecast?${params.toString()}`,
+        );
+
+        if (!response.ok) {
+          throw new Error(`Weather request failed: ${response.status}`);
+        }
+
+        const data = (await response.json()) as OpenMeteoDailyResponse;
+        if (!isActive) return;
+
+        setDays(buildDetailedForecastDays(data));
+        setStatus("Forecast synced");
+      } catch (error) {
+        console.error(error);
+        if (isActive) setStatus("Forecast unavailable");
+      }
+    };
+
+    void loadWeather();
+    const interval = window.setInterval(loadWeather, 30 * 60 * 1000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  return { days, status };
+}
+
 function useWorldCup() {
   const [results, setResults] = useState<WorldCupMatch[]>([]);
   const [schedule, setSchedule] = useState<WorldCupMatch[]>([]);
@@ -621,6 +881,24 @@ type OpenMeteoResponse = {
   };
 };
 
+type OpenMeteoDailyResponse = {
+  hourly: {
+    time: string[];
+    temperature_2m: number[];
+    precipitation_probability: number[];
+    weather_code: number[];
+  };
+  daily: {
+    time: string[];
+    weather_code: number[];
+    temperature_2m_max: number[];
+    temperature_2m_min: number[];
+    precipitation_probability_max: number[];
+    sunrise: string[];
+    sunset: string[];
+  };
+};
+
 type EspnScoreboardResponse = {
   events: Array<{
     id: string;
@@ -685,7 +963,7 @@ function buildForecastPeriods(hourly: OpenMeteoResponse["hourly"]) {
     const temp =
       rows.reduce((total, row) => total + row.temp, 0) / rows.length;
     const precipitation = Math.max(...rows.map((row) => row.precipitation));
-    const code = mostCommon(rows.map((row) => row.code));
+    const code = mostCommon(rows.map((row) => row.code), 0);
 
     return {
       label: period.label,
@@ -696,13 +974,73 @@ function buildForecastPeriods(hourly: OpenMeteoResponse["hourly"]) {
   });
 }
 
-function mostCommon(values: number[]) {
-  const counts = new Map<number, number>();
+const dayLabels = ["Today", "Tomorrow"];
+
+function buildDetailedForecastDays(
+  data: OpenMeteoDailyResponse,
+): DetailedForecastDay[] {
+  const hours = data.hourly.time.map((time, index) => ({
+    time: new Date(time),
+    temp: data.hourly.temperature_2m[index],
+    precipitation: data.hourly.precipitation_probability[index] ?? 0,
+    condition: describeWeather(data.hourly.weather_code[index]),
+  }));
+
+  return data.daily.time.map((dateString, index) => {
+    const date = new Date(`${dateString}T00:00:00`);
+    const dayHours = hours.filter((hour) => hour.time.getDate() === date.getDate());
+
+    return {
+      date,
+      label: dayLabels[index] ?? formatDayLabel(date),
+      high: data.daily.temperature_2m_max[index],
+      low: data.daily.temperature_2m_min[index],
+      condition: describeWeather(data.daily.weather_code[index]),
+      precipitation: data.daily.precipitation_probability_max[index] ?? 0,
+      sunrise: new Date(data.daily.sunrise[index]),
+      sunset: new Date(data.daily.sunset[index]),
+      hours: dayHours,
+      periods: summarizeDayPeriods(dayHours),
+    };
+  });
+}
+
+function summarizeDayPeriods(hours: DetailedForecastHour[]): ForecastPeriod[] {
+  return forecastPeriods.map((period) => {
+    const rows = hours.filter(
+      (hour) =>
+        hour.time.getHours() >= period.startHour &&
+        hour.time.getHours() < period.endHour,
+    );
+
+    if (rows.length === 0) {
+      return {
+        label: period.label,
+        temp: 0,
+        precipitation: 0,
+        condition: "Forecast",
+      };
+    }
+
+    const temp = rows.reduce((total, row) => total + row.temp, 0) / rows.length;
+    const precipitation = Math.max(...rows.map((row) => row.precipitation));
+    const condition = mostCommon(rows.map((row) => row.condition), "Forecast");
+
+    return { label: period.label, temp, precipitation, condition };
+  });
+}
+
+function formatDayLabel(date: Date) {
+  return date.toLocaleDateString([], { weekday: "long" });
+}
+
+function mostCommon<T>(values: T[], fallback: T): T {
+  const counts = new Map<T, number>();
   values.forEach((value) => {
     counts.set(value, (counts.get(value) ?? 0) + 1);
   });
 
-  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback;
 }
 
 function toWorldCupMatch(
@@ -794,6 +1132,14 @@ function formatEventTime(date: Date) {
   });
 }
 
+function formatClockTime(date: Date) {
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function formatChartHour(date: Date) {
+  return date.toLocaleTimeString([], { hour: "numeric" });
+}
+
 function formatStopwatch(totalSeconds: number) {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -821,6 +1167,27 @@ function describeWeather(code: number) {
   if ([71, 73, 75, 77, 85, 86].includes(code)) return "Snow";
   if ([95, 96, 99].includes(code)) return "Storms";
   return "Forecast";
+}
+
+function weatherIcon(condition: string) {
+  switch (condition) {
+    case "Clear":
+      return "☀️";
+    case "Partly cloudy":
+      return "⛅";
+    case "Fog":
+      return "🌫️";
+    case "Drizzle":
+      return "🌦️";
+    case "Rain":
+      return "🌧️";
+    case "Snow":
+      return "❄️";
+    case "Storms":
+      return "⛈️";
+    default:
+      return "🌡️";
+  }
 }
 
 export default App;
