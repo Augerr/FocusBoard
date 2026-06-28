@@ -335,7 +335,7 @@ h1 {
 }
 
 .weather-icon-lg {
-  font-size: 1.9rem;
+  font-size: 2.1rem;
 }
 
 .empty-state {
@@ -441,7 +441,7 @@ h1 {
 
 .weather-day-heading span {
   color: rgba(255, 255, 255, 0.58);
-  font-size: 1.02rem;
+  font-size: 1.15rem;
   font-weight: 800;
 }
 
@@ -455,20 +455,20 @@ h1 {
 
 .weather-day-summary strong {
   white-space: nowrap;
-  font-size: 2.3rem;
+  font-size: 2.6rem;
   line-height: 1;
 }
 
 .weather-day-summary span {
   color: #99f6e4;
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   font-weight: 850;
   white-space: nowrap;
 }
 
 .weather-day-summary small {
   color: rgba(255, 255, 255, 0.58);
-  font-size: 0.98rem;
+  font-size: 1.1rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -479,7 +479,7 @@ h1 {
   gap: 8px;
   margin-bottom: 10px;
   color: rgba(255, 255, 255, 0.58);
-  font-size: 0.92rem;
+  font-size: 1.05rem;
   font-weight: 700;
 }
 
@@ -512,12 +512,6 @@ h1 {
   fill: rgba(96, 165, 250, 0.42);
 }
 
-.temp-chart-now {
-  stroke: #bef264;
-  stroke-width: 1.5;
-  stroke-dasharray: 4 3;
-}
-
 .temp-chart-tick circle {
   fill: #070a0f;
   stroke: #5eead4;
@@ -526,37 +520,31 @@ h1 {
 
 .temp-chart-tick text {
   fill: #f8fafc;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
 }
 
 .temp-chart-hour {
   fill: rgba(255, 255, 255, 0.5) !important;
-  font-size: 13px !important;
+  font-size: 15px !important;
   font-weight: 700 !important;
 }
 
 .period-list {
   display: grid;
-  flex: 1;
-  align-content: center;
-  gap: 10px;
-  min-height: 0;
-}
-
-.period-list-compact {
   flex: none;
   gap: 6px;
   margin-top: 8px;
+  min-height: 0;
 }
 
-.period-list-compact .period-row {
+.period-list .period-row {
   padding: 5px 10px;
 }
 
 .period-row {
   display: grid;
-  grid-template-columns: 22px 82px 50px 64px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr) 60px 86px;
   align-items: center;
   gap: 8px;
   border-radius: 8px;
@@ -565,33 +553,27 @@ h1 {
 }
 
 .period-row .weather-icon {
-  font-size: 1.3rem;
+  font-size: 1.4rem;
 }
 
 .period-row strong {
-  font-size: 1.05rem;
+  overflow: hidden;
+  font-size: 1.18rem;
   font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .period-row span {
-  font-size: 1.02rem;
+  font-size: 1.15rem;
   font-weight: 900;
+  white-space: nowrap;
 }
 
 .period-row small {
   color: #99f6e4;
-  font-size: 0.9rem;
+  font-size: 1.02rem;
   font-weight: 800;
-  white-space: nowrap;
-}
-
-.period-row em {
-  overflow: hidden;
-  color: rgba(255, 255, 255, 0.76);
-  font-size: 0.95rem;
-  font-style: normal;
-  font-weight: 700;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

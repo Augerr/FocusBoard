@@ -18,12 +18,14 @@ type ForecastPeriod = {
   temp: number;
   precipitation: number;
   condition: string;
+  isDaytime: boolean;
 };
 
 type DayWeather = {
   location: string;
   currentTemp: number;
   condition: string;
+  isDaytime: boolean;
   periods: ForecastPeriod[];
 };
 
@@ -32,6 +34,7 @@ type DetailedForecastHour = {
   temp: number;
   precipitation: number;
   condition: string;
+  isDaytime: boolean;
 };
 
 type DetailedForecastDay = {
@@ -245,7 +248,7 @@ function TodayPanel() {
 }
 
 function WeatherForecastPanel() {
-  const { days, status } = useDetailedWeather();
+  const { days, chartHours, status } = useDetailedWeather();
 
   return (
     <section className="weather-panel" aria-label="Weather forecast">
@@ -258,7 +261,11 @@ function WeatherForecastPanel() {
       ) : (
         <div className="weather-grid">
           {days.map((day) => (
-            <DailyForecastCard key={day.date.toISOString()} day={day} />
+            <DailyForecastCard
+              key={day.date.toISOString()}
+              day={day}
+              chartHours={chartHours}
+            />
           ))}
         </div>
       )}
@@ -266,7 +273,13 @@ function WeatherForecastPanel() {
   );
 }
 
-function DailyForecastCard({ day }: { day: DetailedForecastDay }) {
+function DailyForecastCard({
+  day,
+  chartHours,
+}: {
+  day: DetailedForecastDay;
+  chartHours: DetailedForecastHour[];
+}) {
   const isToday = day.label === "Today";
 
   return (
@@ -298,16 +311,10 @@ function DailyForecastCard({ day }: { day: DetailedForecastDay }) {
         <span>Sunset {formatClockTime(day.sunset)}</span>
       </div>
 
-      {isToday ? (
-        <>
-          <div className="weather-chart-wrap">
-            <TemperatureChart hours={day.hours} />
-          </div>
-          <PeriodForecastList periods={day.periods} compact />
-        </>
-      ) : (
-        <PeriodForecastList periods={day.periods} />
-      )}
+      <div className="weather-chart-wrap">
+        <TemperatureChart hours={isToday ? chartHours : day.hours} />
+      </div>
+      <PeriodForecastList periods={day.periods} />
     </section>
   );
 }
@@ -341,9 +348,6 @@ function TemperatureChart({ hours }: { hours: DetailedForecastHour[] }) {
     height - padding
   } L${points[0].x.toFixed(1)},${height - padding} Z`;
 
-  const now = new Date();
-  const nowPoint = points.find((point) => point.hour.time.getHours() === now.getHours());
-
   return (
     <svg
       className="temp-chart"
@@ -369,16 +373,6 @@ function TemperatureChart({ hours }: { hours: DetailedForecastHour[] }) {
       <path className="temp-chart-area" d={areaPath} />
       <path className="temp-chart-line" d={linePath} />
 
-      {nowPoint ? (
-        <line
-          className="temp-chart-now"
-          x1={nowPoint.x}
-          x2={nowPoint.x}
-          y1={padding}
-          y2={height - padding}
-        />
-      ) : null}
-
       {points.map((point, index) =>
         index % 3 === 0 ? (
           <g key={point.hour.time.toISOString()} className="temp-chart-tick">
@@ -396,24 +390,17 @@ function TemperatureChart({ hours }: { hours: DetailedForecastHour[] }) {
   );
 }
 
-function PeriodForecastList({
-  periods,
-  compact,
-}: {
-  periods: ForecastPeriod[];
-  compact?: boolean;
-}) {
+function PeriodForecastList({ periods }: { periods: ForecastPeriod[] }) {
   return (
-    <div className={compact ? "period-list period-list-compact" : "period-list"}>
+    <div className="period-list">
       {periods.map((period) => (
         <div key={period.label} className="period-row">
-          <span className="weather-icon" aria-hidden="true">
-            {weatherIcon(period.condition)}
+          <span className="weather-icon" role="img" aria-label={period.condition}>
+            {weatherIcon(period.condition, period.isDaytime)}
           </span>
           <strong>{period.label}</strong>
           <span>{Math.round(period.temp)}°C</span>
           <small>{period.precipitation}% rain</small>
-          <em>{period.condition}</em>
         </div>
       ))}
     </div>
@@ -461,7 +448,7 @@ function WeatherCard({ weather }: { weather: DayWeather }) {
       <span>{weather.location}</span>
       <strong>
         <span className="weather-icon" aria-hidden="true">
-          {weatherIcon(weather.condition)}
+          {weatherIcon(weather.condition, weather.isDaytime)}
         </span>
         {Math.round(weather.currentTemp)}°C
       </strong>
@@ -510,7 +497,7 @@ function ForecastList({
       {weather.periods.map((period) => (
         <div key={period.label} className="forecast-row">
           <span className="weather-icon" role="img" aria-label={period.condition}>
-            {weatherIcon(period.condition)}
+            {weatherIcon(period.condition, period.isDaytime)}
           </span>
           <strong title={period.label}>{abbreviatePeriod(period.label)}</strong>
           <span>{Math.round(period.temp)}°C</span>
@@ -693,8 +680,8 @@ function useDayWeather() {
         const params = new URLSearchParams({
           latitude: String(latitude),
           longitude: String(longitude),
-          current: "temperature_2m,weather_code",
-          hourly: "temperature_2m,precipitation_probability,weather_code",
+          current: "temperature_2m,weather_code,is_day",
+          hourly: "temperature_2m,precipitation_probability,weather_code,is_day",
           forecast_days: "1",
           timezone: "auto",
         });
@@ -713,6 +700,7 @@ function useDayWeather() {
           location,
           currentTemp: data.current.temperature_2m,
           condition: describeWeather(data.current.weather_code),
+          isDaytime: data.current.is_day === 1,
           periods: buildForecastPeriods(data.hourly),
         });
         setWeatherStatus("Forecast synced");
@@ -736,6 +724,7 @@ function useDayWeather() {
 
 function useDetailedWeather() {
   const [days, setDays] = useState<DetailedForecastDay[]>([]);
+  const [chartHours, setChartHours] = useState<DetailedForecastHour[]>([]);
   const [status, setStatus] = useState("Loading forecast");
 
   useEffect(() => {
@@ -751,7 +740,7 @@ function useDetailedWeather() {
         const params = new URLSearchParams({
           latitude: String(latitude),
           longitude: String(longitude),
-          hourly: "temperature_2m,precipitation_probability,weather_code",
+          hourly: "temperature_2m,precipitation_probability,weather_code,is_day",
           daily:
             "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset",
           forecast_days: "2",
@@ -768,7 +757,9 @@ function useDetailedWeather() {
         const data = (await response.json()) as OpenMeteoDailyResponse;
         if (!isActive) return;
 
-        setDays(buildDetailedForecastDays(data));
+        const built = buildDetailedForecastDays(data);
+        setDays(built.days);
+        setChartHours(built.chartHours);
         setStatus("Forecast synced");
       } catch (error) {
         console.error(error);
@@ -785,7 +776,7 @@ function useDetailedWeather() {
     };
   }, []);
 
-  return { days, status };
+  return { days, chartHours, status };
 }
 
 function useWorldCup() {
@@ -872,12 +863,14 @@ type OpenMeteoResponse = {
   current: {
     temperature_2m: number;
     weather_code: number;
+    is_day: number;
   };
   hourly: {
     time: string[];
     temperature_2m: number[];
     precipitation_probability: number[];
     weather_code: number[];
+    is_day: number[];
   };
 };
 
@@ -887,6 +880,7 @@ type OpenMeteoDailyResponse = {
     temperature_2m: number[];
     precipitation_probability: number[];
     weather_code: number[];
+    is_day: number[];
   };
   daily: {
     time: string[];
@@ -946,6 +940,7 @@ function buildForecastPeriods(hourly: OpenMeteoResponse["hourly"]) {
         temp: hourly.temperature_2m[index],
         precipitation: hourly.precipitation_probability[index] ?? 0,
         code: hourly.weather_code[index],
+        isDaytime: hourly.is_day[index] === 1,
       }))
       .filter(
         (row) => row.hour >= period.startHour && row.hour < period.endHour,
@@ -957,6 +952,7 @@ function buildForecastPeriods(hourly: OpenMeteoResponse["hourly"]) {
         temp: 0,
         precipitation: 0,
         condition: "Forecast",
+        isDaytime: true,
       };
     }
 
@@ -964,11 +960,13 @@ function buildForecastPeriods(hourly: OpenMeteoResponse["hourly"]) {
       rows.reduce((total, row) => total + row.temp, 0) / rows.length;
     const precipitation = Math.max(...rows.map((row) => row.precipitation));
     const code = mostCommon(rows.map((row) => row.code), 0);
+    const isDaytime = rows[Math.floor(rows.length / 2)].isDaytime;
 
     return {
       label: period.label,
       temp,
       precipitation,
+      isDaytime,
       condition: describeWeather(code),
     };
   });
@@ -978,15 +976,16 @@ const dayLabels = ["Today", "Tomorrow"];
 
 function buildDetailedForecastDays(
   data: OpenMeteoDailyResponse,
-): DetailedForecastDay[] {
+): { days: DetailedForecastDay[]; chartHours: DetailedForecastHour[] } {
   const hours = data.hourly.time.map((time, index) => ({
     time: new Date(time),
     temp: data.hourly.temperature_2m[index],
     precipitation: data.hourly.precipitation_probability[index] ?? 0,
     condition: describeWeather(data.hourly.weather_code[index]),
+    isDaytime: data.hourly.is_day[index] === 1,
   }));
 
-  return data.daily.time.map((dateString, index) => {
+  const days = data.daily.time.map((dateString, index) => {
     const date = new Date(`${dateString}T00:00:00`);
     const dayHours = hours.filter((hour) => hour.time.getDate() === date.getDate());
 
@@ -1003,6 +1002,26 @@ function buildDetailedForecastDays(
       periods: summarizeDayPeriods(dayHours),
     };
   });
+
+  return { days, chartHours: buildRollingChartHours(hours) };
+}
+
+function buildRollingChartHours(
+  hours: DetailedForecastHour[],
+): DetailedForecastHour[] {
+  const now = new Date();
+  const currentHourStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    now.getHours(),
+  );
+  const startIndex = hours.findIndex(
+    (hour) => hour.time.getTime() === currentHourStart.getTime(),
+  );
+
+  if (startIndex === -1) return hours.slice(0, 24);
+  return hours.slice(startIndex, startIndex + 24);
 }
 
 function summarizeDayPeriods(hours: DetailedForecastHour[]): ForecastPeriod[] {
@@ -1019,14 +1038,16 @@ function summarizeDayPeriods(hours: DetailedForecastHour[]): ForecastPeriod[] {
         temp: 0,
         precipitation: 0,
         condition: "Forecast",
+        isDaytime: true,
       };
     }
 
     const temp = rows.reduce((total, row) => total + row.temp, 0) / rows.length;
     const precipitation = Math.max(...rows.map((row) => row.precipitation));
     const condition = mostCommon(rows.map((row) => row.condition), "Forecast");
+    const isDaytime = rows[Math.floor(rows.length / 2)].isDaytime;
 
-    return { label: period.label, temp, precipitation, condition };
+    return { label: period.label, temp, precipitation, condition, isDaytime };
   });
 }
 
@@ -1180,16 +1201,16 @@ function abbreviatePeriod(label: ForecastPeriod["label"]) {
   }
 }
 
-function weatherIcon(condition: string) {
+function weatherIcon(condition: string, isDaytime = true) {
   switch (condition) {
     case "Clear":
-      return "☀️";
+      return isDaytime ? "☀️" : "🌙";
     case "Partly cloudy":
-      return "⛅";
+      return isDaytime ? "⛅" : "☁️";
     case "Fog":
       return "🌫️";
     case "Drizzle":
-      return "🌦️";
+      return isDaytime ? "🌦️" : "🌧️";
     case "Rain":
       return "🌧️";
     case "Snow":
