@@ -156,8 +156,8 @@ function FocusTerminal() {
         <h1>{timeText}</h1>
         <p className="date-line">{dateText}</p>
       </header>
-      <WeatherForecastPanel />
       <TodayPanel />
+      <WeatherForecastPanel />
     </section>
   );
 }
