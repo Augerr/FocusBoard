@@ -3,13 +3,13 @@ import { useEffect, useState } from "react";
 const DEFAULT_LATITUDE = 43.6532;
 const DEFAULT_LONGITUDE = -79.3832;
 const WORLD_CUP_SEASON = 2026;
-const SCHEDULE_START_HOUR = 7;
-const SCHEDULE_END_HOUR = 23;
+const SCHEDULE_START_HOUR = 8;
+const SCHEDULE_END_HOUR = 22;
 const SCHEDULE_SPAN_HOURS = SCHEDULE_END_HOUR - SCHEDULE_START_HOUR;
 const SCHEDULE_SPAN_MINUTES = SCHEDULE_SPAN_HOURS * 60;
-const MIN_SCHEDULE_BLOCK_MINUTES = 110;
+const MIN_SCHEDULE_BLOCK_MINUTES = 100;
 
-type PageId = "focus" | "today" | "weather" | "worldcup";
+type PageId = "focus" | "worldcup";
 
 type CalendarEvent = {
   id: string;
@@ -79,8 +79,6 @@ type StandingGroup = {
 
 const pages: Array<{ id: PageId; label: string }> = [
   { id: "focus", label: "Focus" },
-  { id: "today", label: "Today" },
-  { id: "weather", label: "Weather" },
   { id: "worldcup", label: "World Cup" },
 ];
 
@@ -119,43 +117,14 @@ function App() {
         ))}
       </nav>
 
-      {activePage === "focus" ? (
-        <FocusTerminal />
-      ) : activePage === "today" ? (
-        <TodayPanel />
-      ) : activePage === "weather" ? (
-        <WeatherForecastPanel />
-      ) : (
-        <WorldCupPanel />
-      )}
+      {activePage === "focus" ? <FocusTerminal /> : <WorldCupPanel />}
     </main>
   );
 }
 
 function FocusTerminal() {
-  const [now, setNow] = useState(new Date());
-
-  useEffect(() => {
-    const interval = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(interval);
-  }, []);
-
-  const timeText = now.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const dateText = now.toLocaleDateString([], {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-
   return (
     <section className="focus-page" aria-label="Focus">
-      <header className="focus-clock">
-        <h1>{timeText}</h1>
-        <p className="date-line">{dateText}</p>
-      </header>
       <TodayPanel />
       <WeatherForecastPanel />
     </section>
@@ -163,12 +132,39 @@ function FocusTerminal() {
 }
 
 function TodayPanel() {
-  const { events, calendarStatus } = useTodayEvents();
+  const [dayOffset, setDayOffset] = useState(0);
+  const { events, calendarStatus } = useCalendarEvents(dayOffset);
 
   return (
     <section className="today-panel" aria-label="Today">
       <section className="today-card today-schedule-card">
-        <DaySchedule events={events} status={calendarStatus} />
+        <div className="schedule-nav">
+          <button
+            type="button"
+            className="schedule-nav-button"
+            onClick={() => setDayOffset((current) => Math.max(0, current - 1))}
+            disabled={dayOffset === 0}
+            aria-label="Previous day"
+          >
+            ‹
+          </button>
+          <span className="schedule-nav-label">
+            {formatScheduleDate(dayOffset)}
+          </span>
+          <button
+            type="button"
+            className="schedule-nav-button"
+            onClick={() => setDayOffset((current) => current + 1)}
+            aria-label="Next day"
+          >
+            ›
+          </button>
+        </div>
+        <DaySchedule
+          events={events}
+          status={calendarStatus}
+          dayOffset={dayOffset}
+        />
       </section>
     </section>
   );
@@ -377,10 +373,19 @@ function WorldCupPanel() {
 function DaySchedule({
   events,
   status,
+  dayOffset,
 }: {
   events: CalendarEvent[];
   status: string;
+  dayOffset: number;
 }) {
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => setNow(new Date()), 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, []);
+
   if (events.length === 0) {
     return <p className="empty-state">{status}</p>;
   }
@@ -393,6 +398,8 @@ function DaySchedule({
   const blocks = events
     .map(toScheduleBlock)
     .filter((block): block is ScheduleBlock => block !== null);
+
+  const nowPercent = dayOffset === 0 ? computeNowPercent(now) : null;
 
   return (
     <div className="day-schedule">
@@ -425,6 +432,11 @@ function DaySchedule({
           </div>
         ))}
       </div>
+      {nowPercent === null ? null : (
+        <div className="schedule-now-line" style={{ top: `${nowPercent}%` }}>
+          <span className="schedule-now-dot" aria-hidden="true" />
+        </div>
+      )}
     </div>
   );
 }
@@ -507,7 +519,7 @@ function StandingsTable({
   );
 }
 
-function useTodayEvents() {
+function useCalendarEvents(dayOffset: number) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [calendarStatus, setCalendarStatus] = useState("Loading calendar");
 
@@ -528,8 +540,9 @@ function useTodayEvents() {
 
     const loadEvents = async () => {
       try {
-        const start = startOfToday();
-        const end = endOfToday();
+        const target = addDays(new Date(), dayOffset);
+        const start = startOfDay(target);
+        const end = endOfDay(target);
         const params = new URLSearchParams({
           key: apiKey,
           timeMin: start.toISOString(),
@@ -565,7 +578,7 @@ function useTodayEvents() {
 
         setEvents(todayEvents);
         setCalendarStatus(
-          todayEvents.length > 0 ? "Calendar synced" : "No events today",
+          todayEvents.length > 0 ? "Calendar synced" : "No events scheduled",
         );
       } catch (error) {
         console.error(error);
@@ -580,7 +593,7 @@ function useTodayEvents() {
       isActive = false;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [dayOffset]);
 
   return { events, calendarStatus };
 }
@@ -951,16 +964,22 @@ function formatMatchTime(date: Date) {
   });
 }
 
-function startOfToday() {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date;
+function addDays(date: Date, days: number) {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
 }
 
-function endOfToday() {
-  const date = new Date();
-  date.setHours(23, 59, 59, 999);
-  return date;
+function startOfDay(date: Date) {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function endOfDay(date: Date) {
+  const result = new Date(date);
+  result.setHours(23, 59, 59, 999);
+  return result;
 }
 
 function formatEventTime(date: Date) {
@@ -995,10 +1014,25 @@ function toScheduleBlock(event: CalendarEvent): ScheduleBlock | null {
   return { event, topPercent, heightPercent };
 }
 
+function computeNowPercent(now: Date) {
+  const minutes = minutesFromScheduleStart(now);
+  if (minutes < 0 || minutes > SCHEDULE_SPAN_MINUTES) return null;
+  return (minutes / SCHEDULE_SPAN_MINUTES) * 100;
+}
+
 function formatScheduleHour(hour: number) {
   const date = new Date();
   date.setHours(hour, 0, 0, 0);
   return date.toLocaleTimeString([], { hour: "numeric" });
+}
+
+function formatScheduleDate(dayOffset: number) {
+  const date = addDays(new Date(), dayOffset);
+  return date.toLocaleDateString([], {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 }
 
 function formatClockTime(date: Date) {

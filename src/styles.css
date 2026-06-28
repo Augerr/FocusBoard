@@ -74,36 +74,15 @@ button {
   padding-bottom: 16px;
 }
 
-.focus-clock {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
 .today-panel {
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
   box-shadow: 0 22px 55px rgba(0, 0, 0, 0.35);
 }
 
-h1,
 h2,
 p {
   margin-top: 0;
-}
-
-h1 {
-  margin-bottom: 4px;
-  font-size: 2.6rem;
-  line-height: 0.95;
-  letter-spacing: 0;
-}
-
-.date-line {
-  margin-bottom: 0;
-  color: rgba(255, 255, 255, 0.58);
-  font-size: 1.2rem;
-  font-weight: 700;
 }
 
 .panel-label {
@@ -148,8 +127,7 @@ h1 {
   margin-bottom: 10px;
 }
 
-.today-card .empty-state,
-.today-card .schedule-event {
+.today-card .empty-state {
   background: rgba(15, 23, 42, 0.94);
 }
 
@@ -158,6 +136,46 @@ h1 {
   flex-direction: column;
   flex: 1;
   min-height: 0;
+}
+
+.schedule-nav {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.schedule-nav-button {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.94);
+  color: #f8fafc;
+  font-size: 1.3rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.schedule-nav-button:disabled {
+  opacity: 0.3;
+}
+
+.schedule-nav-button:focus-visible {
+  outline: 3px solid rgba(94, 234, 212, 0.6);
+  outline-offset: 2px;
+}
+
+.schedule-nav-label {
+  color: #111827;
+  font-size: 1.05rem;
+  font-weight: 900;
 }
 
 .day-schedule {
@@ -210,8 +228,9 @@ h1 {
   overflow: hidden;
   min-height: 26px;
   border-radius: 8px;
-  background: #111827;
-  color: #f8fafc;
+  background: #5eead4;
+  color: #042f2e;
+  box-shadow: 0 4px 14px rgba(94, 234, 212, 0.45);
   padding: 4px 10px;
 }
 
@@ -225,10 +244,32 @@ h1 {
 
 .schedule-event span {
   flex-shrink: 0;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(4, 47, 46, 0.72);
   font-size: 0.8rem;
-  font-weight: 700;
+  font-weight: 800;
   white-space: nowrap;
+}
+
+.schedule-now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px solid #ef4444;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.schedule-now-dot {
+  position: absolute;
+  left: 58px;
+  top: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28);
+  transform: translate(-50%, -50%);
 }
 
 .today-panel {
@@ -618,10 +659,6 @@ h1 {
   body {
     overflow: auto;
   }
-
-  h1 {
-    font-size: 2.2rem;
-  }
 }
 
 @media (min-width: 721px) {
@@ -635,10 +672,6 @@ h1 {
   .weather-panel,
   .worldcup-panel {
     height: min(calc(100vh - 68px), clamp(480px, 68vh, 760px));
-  }
-
-  h1 {
-    font-size: clamp(2.6rem, 3vw, 3.2rem);
   }
 
   .worldcup-panel h2 {
