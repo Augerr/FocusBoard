@@ -323,7 +323,7 @@ h1 {
 }
 
 .forecast-row {
-  grid-template-columns: 18px minmax(0, 1fr) 44px 32px;
+  grid-template-columns: 18px minmax(0, 1fr) 56px 48px;
   gap: 6px;
   padding: 11px 10px;
 }
@@ -813,7 +813,7 @@ h1 {
   }
 
   .forecast-row {
-    grid-template-columns: 22px minmax(0, 1fr) 58px 46px;
+    grid-template-columns: 22px minmax(0, 1fr) 66px 54px;
   }
 
   .forecast-row strong {
@@ -853,5 +853,39 @@ h1 {
 
   .today-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 721px) {
+  .terminal,
+  .today-panel,
+  .weather-panel,
+  .worldcup-panel {
+    width: min(100%, clamp(800px, 70vw, 1180px));
+  }
+
+  .terminal,
+  .weather-panel,
+  .worldcup-panel {
+    height: min(calc(100vh - 68px), clamp(480px, 68vh, 760px));
+  }
+
+  h1 {
+    font-size: clamp(4.7rem, 7vw, 6.4rem);
+  }
+
+  .timer {
+    font-size: clamp(5.55rem, 8vw, 7.4rem);
+  }
+
+  .today-panel h2 {
+    max-width: none;
+    font-size: clamp(3.2rem, 4.6vw, 3.8rem);
+  }
+
+  .weather-panel h2,
+  .worldcup-panel h2 {
+    max-width: none;
+    font-size: clamp(2.1rem, 3vw, 2.6rem);
   }
 }

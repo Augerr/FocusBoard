@@ -512,7 +512,7 @@ function ForecastList({
           <span className="weather-icon" role="img" aria-label={period.condition}>
             {weatherIcon(period.condition)}
           </span>
-          <strong>{period.label}</strong>
+          <strong title={period.label}>{abbreviatePeriod(period.label)}</strong>
           <span>{Math.round(period.temp)}°C</span>
           <small>{period.precipitation}%</small>
         </div>
@@ -1167,6 +1167,17 @@ function describeWeather(code: number) {
   if ([71, 73, 75, 77, 85, 86].includes(code)) return "Snow";
   if ([95, 96, 99].includes(code)) return "Storms";
   return "Forecast";
+}
+
+function abbreviatePeriod(label: ForecastPeriod["label"]) {
+  switch (label) {
+    case "Morning":
+      return "Morn";
+    case "Afternoon":
+      return "Aft";
+    default:
+      return label;
+  }
 }
 
 function weatherIcon(condition: string) {
