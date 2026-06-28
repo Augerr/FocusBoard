@@ -3,6 +3,11 @@ import { useEffect, useMemo, useState } from "react";
 const DEFAULT_LATITUDE = 43.6532;
 const DEFAULT_LONGITUDE = -79.3832;
 const WORLD_CUP_SEASON = 2026;
+const SCHEDULE_START_HOUR = 9;
+const SCHEDULE_END_HOUR = 17;
+const SCHEDULE_SPAN_HOURS = SCHEDULE_END_HOUR - SCHEDULE_START_HOUR;
+const SCHEDULE_SPAN_MINUTES = SCHEDULE_SPAN_HOURS * 60;
+const MIN_SCHEDULE_BLOCK_MINUTES = 45;
 
 type PageId = "focus" | "today" | "weather" | "worldcup";
 
@@ -11,6 +16,12 @@ type CalendarEvent = {
   title: string;
   start: Date;
   end?: Date;
+};
+
+type ScheduleBlock = {
+  event: CalendarEvent;
+  topPercent: number;
+  heightPercent: number;
 };
 
 type ForecastPeriod = {
@@ -225,24 +236,20 @@ function FocusTerminal() {
 
 function TodayPanel() {
   const { events, calendarStatus } = useTodayEvents();
-  const { weather, weatherStatus } = useDayWeather();
 
   return (
     <section className="today-panel" aria-label="Today">
       <div>
         <p className="eyebrow">Today</p>
-        <h2>Calendar and forecast</h2>
+        <h2>Today's schedule</h2>
       </div>
-      <div className="today-grid">
-        <section className="today-card">
+      <section className="today-card today-schedule-card">
+        <div className="section-heading">
           <p className="panel-label">Events</p>
-          <EventList events={events} status={calendarStatus} />
-        </section>
-        <section className="today-card">
-          <p className="panel-label">Weather</p>
-          <ForecastList weather={weather} status={weatherStatus} />
-        </section>
-      </div>
+          <span>9 AM – 5 PM</span>
+        </div>
+        <DaySchedule events={events} status={calendarStatus} />
+      </section>
     </section>
   );
 }
@@ -477,6 +484,54 @@ function EventList({
         </li>
       ))}
     </ol>
+  );
+}
+
+function DaySchedule({
+  events,
+  status,
+}: {
+  events: CalendarEvent[];
+  status: string;
+}) {
+  if (events.length === 0) {
+    return <p className="empty-state">{status}</p>;
+  }
+
+  const hours: number[] = [];
+  for (let hour = SCHEDULE_START_HOUR; hour <= SCHEDULE_END_HOUR; hour++) {
+    hours.push(hour);
+  }
+
+  const blocks = events
+    .map(toScheduleBlock)
+    .filter((block): block is ScheduleBlock => block !== null);
+
+  return (
+    <div className="day-schedule">
+      {hours.map((hour) => (
+        <div
+          key={hour}
+          className="schedule-hour"
+          style={{ top: `${((hour - SCHEDULE_START_HOUR) / SCHEDULE_SPAN_HOURS) * 100}%` }}
+        >
+          <span className="schedule-hour-label">{formatScheduleHour(hour)}</span>
+          <span className="schedule-hour-line" />
+        </div>
+      ))}
+      <div className="schedule-events">
+        {blocks.map((block) => (
+          <div
+            key={block.event.id}
+            className="schedule-event"
+            style={{ top: `${block.topPercent}%`, height: `${block.heightPercent}%` }}
+          >
+            <strong>{block.event.title}</strong>
+            <span>{formatEventTime(block.event.start)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -1151,6 +1206,36 @@ function formatEventTime(date: Date) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function minutesFromScheduleStart(date: Date) {
+  return (date.getHours() - SCHEDULE_START_HOUR) * 60 + date.getMinutes();
+}
+
+function toScheduleBlock(event: CalendarEvent): ScheduleBlock | null {
+  const start = minutesFromScheduleStart(event.start);
+  const end = event.end ? minutesFromScheduleStart(event.end) : start + 30;
+
+  if (end <= 0 || start >= SCHEDULE_SPAN_MINUTES) return null;
+
+  const clampedStart = Math.max(start, 0);
+  const clampedEnd = Math.min(end, SCHEDULE_SPAN_MINUTES);
+
+  const naturalHeightPercent =
+    ((clampedEnd - clampedStart) / SCHEDULE_SPAN_MINUTES) * 100;
+  const minHeightPercent = (MIN_SCHEDULE_BLOCK_MINUTES / SCHEDULE_SPAN_MINUTES) * 100;
+  const heightPercent = Math.max(naturalHeightPercent, minHeightPercent);
+
+  const naturalTopPercent = (clampedStart / SCHEDULE_SPAN_MINUTES) * 100;
+  const topPercent = Math.min(naturalTopPercent, 100 - heightPercent);
+
+  return { event, topPercent, heightPercent };
+}
+
+function formatScheduleHour(hour: number) {
+  const date = new Date();
+  date.setHours(hour, 0, 0, 0);
+  return date.toLocaleTimeString([], { hour: "numeric" });
 }
 
 function formatClockTime(date: Date) {

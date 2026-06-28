@@ -348,12 +348,6 @@ h1 {
   font-weight: 850;
 }
 
-.today-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
 .today-card {
   color: #111827;
 }
@@ -364,11 +358,92 @@ h1 {
 
 .today-card .event-list li,
 .today-card .forecast-row,
-.today-card .empty-state {
+.today-card .empty-state,
+.today-card .schedule-event {
   background: rgba(15, 23, 42, 0.94);
 }
 
+.today-schedule-card {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.day-schedule {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.schedule-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateY(-50%);
+}
+
+.schedule-hour-label {
+  flex-shrink: 0;
+  width: 52px;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.schedule-hour-line {
+  flex: 1;
+  height: 1px;
+  background: rgba(17, 24, 39, 0.14);
+}
+
+.schedule-events {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 62px;
+}
+
+.schedule-event {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  overflow: hidden;
+  min-height: 26px;
+  border-radius: 8px;
+  background: #111827;
+  color: #f8fafc;
+  padding: 4px 10px;
+}
+
+.schedule-event strong {
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-event span {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .today-panel {
+  display: flex;
+  flex-direction: column;
   width: min(100%, 800px);
   min-height: 360px;
   margin: 0 auto;
@@ -715,6 +790,14 @@ h1 {
 }
 
 @media (max-width: 720px) {
+  .today-panel {
+    height: auto;
+  }
+
+  .day-schedule {
+    min-height: 380px;
+  }
+
   .worldcup-panel {
     height: auto;
   }
@@ -832,10 +915,6 @@ h1 {
   .day-panel {
     min-height: 260px;
   }
-
-  .today-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (min-width: 721px) {
@@ -847,6 +926,7 @@ h1 {
   }
 
   .terminal,
+  .today-panel,
   .weather-panel,
   .worldcup-panel {
     height: min(calc(100vh - 68px), clamp(480px, 68vh, 760px));
